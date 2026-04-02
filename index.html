@@ -51,26 +51,41 @@
       document.body.innerHTML = `<div style="background:#000;color:#fff;font-family:monospace;padding:20px">Fehler beim Laden von <b>${chosenPage}</b><br><br>${err.message}</div>`;
     });
 
-  function injectFooter() {
+function injectFooter() {
     const currentDomain = window.location.hostname.replace('www.', '');
     const currentYear = new Date().getFullYear();
     
-    // Erstelle den Footer-Container
     const footer = document.createElement('footer');
     footer.className = 'dynamic-footer';
     
-    // Inhalt zusammenbauen
+    // Direktes Inline-Styling für maximale Priorität
+    Object.assign(footer.style, {
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)', // Dunkler Hintergrund für bessere Lesbarkeit auf Wellen
+        color: '#ffffff',
+        padding: '10px 15px',
+        borderRadius: '8px',
+        fontSize: '12px',
+        fontFamily: 'sans-serif',
+        zIndex: '10000',
+        textAlign: 'right',
+        lineHeight: '1.5',
+        backdropFilter: 'blur(5px)'
+    });
+    
     footer.innerHTML = `
-        <div>&copy; 2026–${currentYear} All rights reserved.</div>
+        <div style="margin-bottom: 5px;">&copy; 2026–${currentYear} mon-caillou. All rights reserved.</div>
         <div>
-            <a href="https://legal.${currentDomain}" target="_blank">Mentions Légales & Impressum</a>
-            <a href="https://legal.${currentDomain}#privacy" target="_blank">Politique de confidentialité</a>
+            <a href="https://legal.${currentDomain}" target="_blank" style="color: #66b3ff; text-decoration: none;">Mentions Légales & Impressum</a>
+            <a href="https://legal.${currentDomain}#privacy" target="_blank" style="color: #66b3ff; text-decoration: none; margin-left: 15px;">Politique de confidentialité</a>
         </div>
     `;
     
-    // In den Body der neu geladenen Seite einfügen
     document.body.appendChild(footer);
-  }
+}
+  
 </script>
 </body>
 </html>
