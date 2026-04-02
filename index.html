@@ -61,8 +61,8 @@ function injectFooter() {
     // Direktes Inline-Styling für maximale Priorität
     Object.assign(footer.style, {
         position: 'fixed',
-        bottom: '20px',
-        right: '20px',
+        bottom: '10px',
+        right: '10px',
         backgroundColor: 'rgba(0, 0, 0, 0.5)', // Dunkler Hintergrund für bessere Lesbarkeit auf Wellen
         color: '#ffffff',
         padding: '10px 15px',
@@ -76,10 +76,10 @@ function injectFooter() {
     });
     
     footer.innerHTML = `
-        <div style="margin-bottom: 5px;">&copy; 2026–${currentYear} mon-caillou. All rights reserved.</div>
+        <div style="margin-bottom: 5px;">&copy; 2026–${currentYear} All rights reserved.</div>
         <div>
-            <a href="https://legal.${currentDomain}" target="_blank" style="color: #66b3ff; text-decoration: none;">Mentions Légales & Impressum</a>
-            <a href="https://legal.${currentDomain}#privacy" target="_blank" style="color: #66b3ff; text-decoration: none; margin-left: 15px;">Politique de confidentialité</a>
+            <a href="https://legal.${currentDomain}" target="_legal" style="color: #66b3ff; text-decoration: none;">Mentions Légales & Impressum</a>
+            <a href="https://legal.${currentDomain}#privacy" target="_legal" style="color: #66b3ff; text-decoration: none; margin-left: 15px;">Politique de confidentialité</a>
         </div>
     `;
     
