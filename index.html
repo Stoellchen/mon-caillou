@@ -82,8 +82,11 @@ function injectFooter() {
             <a href="https://legal.${currentDomain}#privacy" target="_legal" style="color: #66b3ff; text-decoration: none; margin-left: 15px;">Politique de confidentialité</a>
         </div>
     `;
-    
-    document.body.appendChild(footer);
+  // Barrierefreiheit-Attribute korrekt setzen
+  footer.setAttribute('role', 'contentinfo'); 
+  footer.setAttribute('aria-label', 'Informations légales et confidentialité');    
+
+  document.body.appendChild(footer);
 }
   
 </script>
