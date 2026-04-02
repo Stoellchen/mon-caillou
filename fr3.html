@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SYSTEM READY</title>
+
+<style>
+html,body{
+  margin:0;
+  background:#000;
+  overflow:hidden;
+  font-family:monospace;
+}
+
+#bg{
+  position:fixed;
+  inset:0;
+  background-color:#000;
+  background-size:cover;
+  background-position:center center;
+  background-repeat:no-repeat;
+  filter:grayscale(1) contrast(1.08) brightness(0.28);
+  transform:scale(1.03);
+  transition:opacity 1.4s ease;
+  opacity:1;
+  z-index:0;
+}
+
+#bg::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    rgba(0,0,0,0.68),
+    radial-gradient(circle at center, rgba(255,255,255,0.05), rgba(0,0,0,0.55) 55%, rgba(0,0,0,0.88)),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.025) 0px,
+      rgba(255,255,255,0.025) 1px,
+      rgba(0,0,0,0) 2px,
+      rgba(0,0,0,0) 4px
+    );
+  pointer-events:none;
+}
+
+canvas{
+  position:fixed;
+  inset:0;
+  opacity: 0.4;
+  z-index:1;
+}
+
+#ui{
+  position:fixed;
+  top:20px;
+  left:20px;
+  color:#aaa;
+  letter-spacing:.15em;
+  font-size:12px;
+  z-index:10;
+  pointer-events:none;
+}
+
+#bg-wrap{
+  position:fixed;
+  inset:0;
+  z-index:0;
+  overflow:hidden;
+}
+
+.bg-layer{
+  position:absolute;
+  inset:0;
+  background-color:#000;
+  background-size:cover;
+  background-position:center center;
+  background-repeat:no-repeat;
+  filter:grayscale(1) contrast(1.05) brightness(0.42);
+  transform:scale(1.03);
+  opacity:0;
+  transition:opacity 1.8s ease;
+}
+
+#bg-wrap::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    rgba(0,0,0,0.42),
+    radial-gradient(circle at center, rgba(255,255,255,0.04), rgba(0,0,0,0.32) 55%, rgba(0,0,0,0.62)),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.018) 0px,
+      rgba(255,255,255,0.018) 1px,
+      rgba(0,0,0,0) 2px,
+      rgba(0,0,0,0) 4px
+    );
+  pointer-events:none;
+}
+
+</style>
+<script src="js/backgrounds.js"></script>
+</head>
+<body>
+<div id="bg-wrap">
+  <div class="bg-layer" id="bgA"></div>
+  <div class="bg-layer" id="bgB"></div>
+</div>
+
+<canvas id="c"></canvas>
+<div id="ui">FRANCE SIGNAL FIELD</div>
+
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+
+let W, H;
+function resize(){
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+window.addEventListener("resize", resize);
+resize();
+
+const img = new Image();
+img.src = "images/france_mask.png";
+
+let maskData = null;
+let scale = 1;
+let offsetX = 0;
+let offsetY = 0;
+
+const particles = [];
+const pulses = [];
+
+const pointer = {
+  x: -9999,
+  y: -9999,
+  active: false
+};
+
+// label: 1=Text anzeigen
+// color: 0=weiss, 1=gelb
+const cities = [
+  {name:"Paris", x:0.55, y:0.35, weight:4.0, label:0, color:0},
+  {name:"Marseille", x:0.72, y:0.78, weight:3.5, label:0, color:0},
+  {name:"Lyon", x:0.68, y:0.55, weight:3.2, label:0, color:0},
+  {name:"Toulouse", x:0.45, y:0.78, weight:3.0, label:0, color:0},
+  {name:"Nice", x:0.86, y:0.70, weight:2.8, label:0, color:0},
+  {name:"Nantes", x:0.25, y:0.50, weight:2.8, label:0, color:0},
+  {name:"Strasbourg", x:0.88, y:0.35, weight:2.7, label:0, color:0},
+  {name:"Montpellier", x:0.65, y:0.85, weight:2.6, label:0, color:0},
+
+  {name:"Bordeaux", x:0.32, y:0.65, weight:2.8, label:1, color:0},
+
+  {name:"Lille", x:0.55, y:0.10, weight:2.6, label:0, color:0},
+  {name:"Rennes", x:0.22, y:0.45, weight:2.2, label:0, color:0},
+  {name:"Reims", x:0.65, y:0.28, weight:2.1, label:0, color:0},
+  {name:"Le Havre", x:0.45, y:0.20, weight:2.0, label:0, color:0},
+  {name:"Saint-Étienne", x:0.65, y:0.58, weight:2.0, label:0, color:0},
+  {name:"Toulon", x:0.75, y:0.82, weight:2.0, label:0, color:0},
+  {name:"Grenoble", x:0.75, y:0.62, weight:2.0, label:0, color:0},
+  {name:"Dijon", x:0.72, y:0.42, weight:2.0, label:0, color:0},
+  {name:"Angers", x:0.30, y:0.48, weight:1.9, label:0, color:0},
+  {name:"Nîmes", x:0.68, y:0.80, weight:1.9, label:0, color:0},
+  {name:"Villeurbanne", x:0.69, y:0.55, weight:1.8, label:0, color:0},
+
+  {name:"Clermont-Ferrand", x:0.55, y:0.60, weight:1.8, label:0, color:0},
+  {name:"Le Mans", x:0.35, y:0.42, weight:1.8, label:0, color:0},
+  {name:"Aix-en-Provence", x:0.73, y:0.77, weight:1.8, label:0, color:0},
+  {name:"Brest", x:0.10, y:0.42, weight:1.7, label:0, color:0},
+  {name:"Tours", x:0.40, y:0.40, weight:1.7, label:0, color:0},
+  {name:"Amiens", x:0.55, y:0.20, weight:1.7, label:0, color:0},
+  {name:"Limoges", x:0.45, y:0.62, weight:1.7, label:0, color:0},
+  {name:"Annecy", x:0.80, y:0.58, weight:1.7, label:0, color:0},
+  {name:"Perpignan", x:0.62, y:0.92, weight:1.7, label:0, color:0},
+  {name:"Metz", x:0.85, y:0.30, weight:1.7, label:0, color:0},
+
+  {name:"Besançon", x:0.78, y:0.48, weight:1.6, label:0, color:0},
+  {name:"Orléans", x:0.50, y:0.38, weight:1.6, label:0, color:0},
+  {name:"Mulhouse", x:0.90, y:0.38, weight:1.6, label:0, color:0},
+  {name:"Rouen", x:0.48, y:0.22, weight:1.6, label:0, color:0},
+  {name:"Caen", x:0.40, y:0.25, weight:1.6, label:0, color:0},
+  {name:"Nancy", x:0.83, y:0.32, weight:1.6, label:0, color:0},
+  {name:"Avignon", x:0.70, y:0.78, weight:1.6, label:0, color:0},
+  {name:"Poitiers", x:0.38, y:0.55, weight:1.6, label:0, color:0},
+
+  // ⭐ DEIN ORT
+  {name:"cb", x:0.40, y:0.70, weight:0.5, label:0, color:1}
+];
+
+img.onload = () => {
+  const off = document.createElement("canvas");
+  off.width = img.width;
+  off.height = img.height;
+  const octx = off.getContext("2d");
+  octx.drawImage(img, 0, 0);
+  maskData = octx.getImageData(0, 0, img.width, img.height);
+  initParticles();
+};
+
+function isInside(x, y) {
+  if (!maskData) return false;
+
+  const ix = Math.floor(x);
+  const iy = Math.floor(y);
+
+  if (ix < 0 || iy < 0 || ix >= maskData.width || iy >= maskData.height) {
+    return false;
+  }
+
+  const i = (iy * maskData.width + ix) * 4;
+  const r = maskData.data[i];
+  const g = maskData.data[i + 1];
+  const b = maskData.data[i + 2];
+  const brightness = (r + g + b) / 3;
+
+  return brightness > 100;
+}
+
+function screenToMask(sx, sy) {
+  return {
+    x: (sx - offsetX) / scale,
+    y: (sy - offsetY) / scale
+  };
+}
+
+function maskToScreen(mx, my) {
+  return {
+    x: offsetX + mx * scale,
+    y: offsetY + my * scale
+  };
+}
+
+function getVisibleCities() {
+  return cities.filter(c => c.label === 1 || c.color === 1);
+}
+
+function initParticles() {
+  particles.length = 0;
+  for (let i = 0; i < 900; i++) {
+    spawnParticle();
+  }
+}
+
+function spawnParticle() {
+  let x, y;
+
+  if (Math.random() < 0.7) {
+    const city = cities[Math.floor(Math.random() * cities.length)];
+    const spread = 80 / city.weight;
+    x = city.x * img.width + (Math.random() - 0.5) * spread;
+    y = city.y * img.height + (Math.random() - 0.5) * spread;
+  } else {
+    x = Math.random() * img.width;
+    y = Math.random() * img.height;
+  }
+
+  let tries = 0;
+  while (!isInside(x, y) && tries < 100) {
+    x = Math.random() * img.width;
+    y = Math.random() * img.height;
+    tries++;
+  }
+
+  if (!isInside(x, y)) return;
+
+  particles.push({
+    x, y,
+    vx: (Math.random() - 0.5) * 0.3,
+    vy: (Math.random() - 0.5) * 0.3,
+    r: Math.random() * 1.5 + 0.5
+  });
+}
+
+function sendPulse(x, y, reflected = false) {
+  pulses.push({
+    x,
+    y,
+    r: 0,
+    speed: reflected ? 1.3 : 2.0,
+    alpha: reflected ? 0.12 : 0.22,
+    reflected
+  });
+}
+
+function pulseCity(name) {
+  const c = cities.find(c => c.name === name);
+  if (!c) return;
+
+  const x = offsetX + c.x * img.width * scale;
+  const y = offsetY + c.y * img.height * scale;
+
+  sendPulse(x, y);
+}
+
+function detectReflections(pulse) {
+  const samples = 48;
+  const threshold = 10;
+
+  for (let a = 0; a < Math.PI * 2; a += (Math.PI * 2) / samples) {
+    const sx = pulse.x + Math.cos(a) * pulse.r;
+    const sy = pulse.y + Math.sin(a) * pulse.r;
+
+    const m = screenToMask(sx, sy);
+
+    const insideNow = isInside(m.x, m.y);
+    const insideBefore = isInside(
+      m.x - Math.cos(a) * threshold / scale,
+      m.y - Math.sin(a) * threshold / scale
+    );
+
+    if (!insideNow && insideBefore) {
+      const rx = pulse.x + Math.cos(a) * (pulse.r - 8);
+      const ry = pulse.y + Math.sin(a) * (pulse.r - 8);
+
+      if (Math.random() < 0.08) {
+        sendPulse(rx, ry, true);
+      }
+    }
+  }
+}
+
+function drawMaskPath() {
+  if (!maskData) return;
+
+  ctx.beginPath();
+
+  for (let y = 0; y < maskData.height; y += 4) {
+    let runStart = -1;
+
+    for (let x = 0; x < maskData.width; x++) {
+      const i = (y * maskData.width + x) * 4;
+      const r = maskData.data[i];
+      const g = maskData.data[i + 1];
+      const b = maskData.data[i + 2];
+      const brightness = (r + g + b) / 3;
+      const inside = brightness > 100;
+
+      if (inside && runStart === -1) {
+        runStart = x;
+      }
+
+      if ((!inside || x === maskData.width - 1) && runStart !== -1) {
+        const runEnd = (inside && x === maskData.width - 1) ? x : x - 1;
+
+        const sx = offsetX + runStart * scale;
+        const sy = offsetY + y * scale;
+        const sw = (runEnd - runStart + 1) * scale;
+        const sh = 4 * scale;
+
+        ctx.rect(sx, sy, sw, sh);
+        runStart = -1;
+      }
+    }
+  }
+
+  ctx.clip();
+}
+
+function drawParticleCityLinks() {
+  const visibleCities = getVisibleCities();
+  if (!visibleCities.length) return;
+
+  for (const p of particles) {
+    const px = offsetX + p.x * scale;
+    const py = offsetY + p.y * scale;
+
+    for (const c of visibleCities) {
+      const cx = offsetX + c.x * img.width * scale;
+      const cy = offsetY + c.y * img.height * scale;
+
+      const dx = cx - px;
+      const dy = cy - py;
+      const d = Math.hypot(dx, dy);
+
+      const maxDist = c.color === 1 ? 180 : 110;
+
+      if (d < maxDist) {
+        const alphaBase = c.color === 1 ? 0.22 : 0.12;
+        const alpha = (1 - d / maxDist) * alphaBase;
+
+        ctx.strokeStyle = c.color === 1
+          ? `rgba(255,220,80,${alpha})`
+          : `rgba(255,255,255,${alpha})`;
+
+        ctx.lineWidth = c.color === 1 ? 0.8 : 0.5;
+
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.lineTo(cx, cy);
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+canvas.addEventListener("click", e => {
+  sendPulse(e.clientX, e.clientY);
+});
+
+canvas.addEventListener("mousemove", e => {
+  pointer.x = e.clientX;
+  pointer.y = e.clientY;
+  pointer.active = true;
+});
+
+canvas.addEventListener("mouseleave", () => {
+  pointer.active = false;
+});
+
+canvas.addEventListener("touchmove", e => {
+  const t = e.touches[0];
+  if (!t) return;
+  pointer.x = t.clientX;
+  pointer.y = t.clientY;
+  pointer.active = true;
+}, { passive: true });
+
+canvas.addEventListener("touchend", () => {
+  pointer.active = false;
+});
+
+canvas.addEventListener("touchcancel", () => {
+  pointer.active = false;
+});
+
+let t = 0;
+
+function loop() {
+  requestAnimationFrame(loop);
+
+  if (!maskData) {
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#666";
+    ctx.fillText("Loading mask...", 20, 50);
+    return;
+  }
+
+  t += 0.016;
+
+  ctx.fillStyle = "rgba(0,0,0,0.25)";
+  ctx.fillRect(0, 0, W, H);
+
+  scale = Math.min(W / img.width, H / img.height) * 0.8;
+  offsetX = (W - img.width * scale) / 2;
+  offsetY = (H - img.height * scale) / 2;
+
+  // pulses update
+  pulses.forEach(p => {
+    p.r += p.speed;
+    p.alpha *= 0.992;
+
+    if (!p.reflected) {
+      detectReflections(p);
+    }
+  });
+
+  for (let i = pulses.length - 1; i >= 0; i--) {
+    if (pulses[i].alpha < 0.01 || pulses[i].r > Math.max(W, H)) {
+      pulses.splice(i, 1);
+    }
+  }
+
+  // particles update
+  particles.forEach(p => {
+    const sx = offsetX + p.x * scale;
+    const sy = offsetY + p.y * scale;
+
+    if (pointer.active) {
+      const dx = sx - pointer.x;
+      const dy = sy - pointer.y;
+      const d = Math.hypot(dx, dy);
+      const repelRadius = 120;
+
+      if (d > 0 && d < repelRadius) {
+        const force = (1 - d / repelRadius) * 0.08;
+        p.vx += (dx / d) * force / scale * 12;
+        p.vy += (dy / d) * force / scale * 12;
+      }
+    }
+
+    p.vx *= 0.985;
+    p.vy *= 0.985;
+
+    p.x += p.vx;
+    p.y += p.vy;
+
+    if (!isInside(p.x, p.y)) {
+      p.vx *= -0.8;
+      p.vy *= -0.8;
+      p.x += p.vx * 2;
+      p.y += p.vy * 2;
+    }
+  });
+
+  // pulses nur innerhalb Frankreich
+  ctx.save();
+  drawMaskPath();
+
+  pulses.forEach(p => {
+    ctx.strokeStyle = p.reflected
+      ? `rgba(255,255,255,${p.alpha * 0.7})`
+      : `rgba(255,255,255,${p.alpha})`;
+
+    ctx.lineWidth = p.reflected ? 1 : 1.6;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+
+  ctx.restore();
+
+  // particles zeichnen
+  particles.forEach(p => {
+    const sx = offsetX + p.x * scale;
+    const sy = offsetY + p.y * scale;
+
+    let glow = 0.25;
+
+    pulses.forEach(pl => {
+      const d = Math.hypot(sx - pl.x, sy - pl.y);
+      if (Math.abs(d - pl.r) < 10) {
+        glow += 1;
+      }
+    });
+
+    ctx.fillStyle = `rgba(255,255,255,${Math.min(glow, 1)})`;
+    ctx.beginPath();
+    ctx.arc(sx, sy, p.r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // feine Linien zu markierten Städten
+  ctx.save();
+  drawMaskPath();
+  drawParticleCityLinks();
+  ctx.restore();
+
+  // Städte
+  cities.forEach(c => {
+    const x = offsetX + c.x * img.width * scale;
+    const y = offsetY + c.y * img.height * scale;
+
+    const isYellow = c.color === 1;
+    const col = isYellow
+      ? "rgba(255,220,80,1)"
+      : "rgba(255,255,255,1)";
+
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.arc(x, y, 3 + c.weight * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (c.label === 1) {
+      ctx.fillStyle = col;
+      ctx.font = "13px monospace";
+      ctx.fillText(c.name, x + 10, y - 10);
+    }
+  });
+}
+
+loop();
+setTimeout(() => pulseCity("Bordeaux"), 800);
+</script>
+
+</body>
+</html>

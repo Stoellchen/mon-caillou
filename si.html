@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SYSTEM READY</title>
+  <style>
+    :root {
+      --bg: #000;
+      --fg: #fff;
+      --muted: rgba(255,255,255,0.72);
+      --soft: rgba(255,255,255,0.18);
+      --panel: rgba(0,0,0,0.55);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      color: #fff;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      overflow: hidden;
+    }
+
+    #bg {
+      position: fixed;
+      inset: 0;
+      background-color: #000;
+      background-size: cover;
+      background-position: center center;
+      background-repeat: no-repeat;
+      filter: grayscale(1) contrast(1.05) brightness(0.26);
+      transform: scale(1.03);
+      transition: opacity 1.6s ease;
+      opacity: 1;
+    }
+
+    #bg::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        rgba(0,0,0,0.7),
+        radial-gradient(circle at center, rgba(255,255,255,0.05), rgba(0,0,0,0.55) 55%, rgba(0,0,0,0.88)),
+        repeating-linear-gradient(
+          to bottom,
+          rgba(255,255,255,0.03) 0px,
+          rgba(255,255,255,0.03) 1px,
+          rgba(0,0,0,0) 2px,
+          rgba(0,0,0,0) 4px
+        );
+      pointer-events: none;
+    }
+
+    #game {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    .hud {
+      position: fixed;
+      top: 18px;
+      left: 18px;
+      right: 18px;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      z-index: 3;
+      pointer-events: none;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 12px;
+      color: var(--muted);
+      text-shadow: 0 0 10px rgba(255,255,255,0.15);
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--soft);
+      padding: 8px 12px;
+      backdrop-filter: blur(3px);
+    }
+
+    .center-box {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: min(92vw, 760px);
+      text-align: center;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .title {
+      font-size: clamp(44px, 9vw, 108px);
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      margin: 0 0 10px;
+      text-transform: uppercase;
+      text-shadow: 0 0 24px rgba(255,255,255,0.18);
+    }
+
+    .subtitle {
+      margin: 0;
+      font-size: clamp(14px, 2vw, 18px);
+      color: var(--muted);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      line-height: 1.7;
+    }
+
+    .bottom {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .help {
+      background: var(--panel);
+      border: 1px solid var(--soft);
+      padding: 10px 14px;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-align: center;
+      backdrop-filter: blur(3px);
+    }
+
+    .touch-controls {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 72px;
+      display: none;
+      justify-content: space-between;
+      align-items: end;
+      gap: 12px;
+      padding: 0 12px calc(env(safe-area-inset-bottom, 0px) + 8px);
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    .touch-group {
+      display: flex;
+      gap: 12px;
+      pointer-events: auto;
+    }
+
+    .touch-btn {
+      width: 72px;
+      height: 72px;
+      border: 1px solid rgba(255,255,255,0.24);
+      background: rgba(0,0,0,0.52);
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font: inherit;
+      font-size: 28px;
+      line-height: 1;
+      border-radius: 18px;
+      backdrop-filter: blur(3px);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      user-select: none;
+    }
+
+    .touch-btn:active {
+      transform: scale(0.97);
+      background: rgba(255,255,255,0.12);
+    }
+
+    .help strong {
+      color: #fff;
+      font-weight: 700;
+    }
+
+    @media (max-width: 720px) {
+      .hud {
+        font-size: 11px;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        gap: 8px;
+      }
+
+      .panel {
+        padding: 7px 10px;
+      }
+
+      .center-box {
+        width: min(92vw, 520px);
+        top: 42%;
+      }
+
+      .subtitle {
+        line-height: 1.55;
+      }
+
+      .bottom {
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+        width: calc(100vw - 20px);
+      }
+
+      .help {
+        width: 100%;
+        font-size: 11px;
+      }
+
+      .touch-controls {
+        display: flex;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .hud {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .title {
+        letter-spacing: 0.11em;
+      }
+
+      .touch-btn {
+        width: 64px;
+        height: 64px;
+        font-size: 24px;
+        border-radius: 16px;
+      }
+    }
+
+#bg-wrap{
+  position:fixed;
+  inset:0;
+  z-index:0;
+  overflow:hidden;
+}
+
+.bg-layer{
+  position:absolute;
+  inset:0;
+  background-color:#000;
+  background-size:cover;
+  background-position:center center;
+  background-repeat:no-repeat;
+  filter:grayscale(1) contrast(1.05) brightness(0.42);
+  transform:scale(1.03);
+  opacity:0;
+  transition:opacity 1.8s ease;
+}
+
+#bg-wrap::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    rgba(0,0,0,0.42),
+    radial-gradient(circle at center, rgba(255,255,255,0.04), rgba(0,0,0,0.32) 55%, rgba(0,0,0,0.62)),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.018) 0px,
+      rgba(255,255,255,0.018) 1px,
+      rgba(0,0,0,0) 2px,
+      rgba(0,0,0,0) 4px
+    );
+  pointer-events:none;
+}
+
+</style>
+<script src="js/backgrounds.js"></script>
+</head>
+<body>
+<div id="bg-wrap">
+  <div class="bg-layer" id="bgA"></div>
+  <div class="bg-layer" id="bgB"></div>
+</div>
+
+
+  <canvas id="game"></canvas>
+
+  <div class="hud">
+    <div class="panel">404 · Lost in Space</div>
+    <div class="panel">Score: <span id="score">0</span> · Best: <span id="best">0</span></div>
+  </div>
+
+  <div class="center-box" id="overlay">
+    <h1 class="title">404</h1>
+    <p class="subtitle">
+      Falsche Koordinaten<br>
+      Vernichte die Eindringlinge und finde zurück
+    </p>
+  </div>
+
+  <div class="bottom">
+    <div class="help">
+      <strong>← →</strong> déplacer · <strong>Space</strong> tirer · <strong>R</strong> recommencer
+    </div>
+  </div>
+
+  <div class="touch-controls" aria-label="Contrôle tactile">
+    <div class="touch-group">
+      <button class="touch-btn" id="btn-left" aria-label="Nach links">←</button>
+      <button class="touch-btn" id="btn-right" aria-label="Nach rechts">→</button>
+    </div>
+    <div class="touch-group">
+      <button class="touch-btn" id="btn-fire" aria-label="Feuern">●</button>
+      <button class="touch-btn" id="btn-restart" aria-label="Restart">↺</button>
+    </div>
+  </div>
+
+  <script>
+
+    const STORAGE_KEY = "chaudeborde_404_best";
+
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const bg = document.getElementById("bg");
+    const scoreEl = document.getElementById("score");
+    const bestEl = document.getElementById("best");
+    const overlay = document.getElementById("overlay");
+    const btnLeft = document.getElementById("btn-left");
+    const btnRight = document.getElementById("btn-right");
+    const btnFire = document.getElementById("btn-fire");
+    const btnRestart = document.getElementById("btn-restart");
+
+    let width = 0;
+    let height = 0;
+    let animationId = null;
+    let lastTime = 0;
+    let score = 0;
+    let best = Number(localStorage.getItem(STORAGE_KEY) || 0);
+    let gameOver = false;
+    let won = false;
+    let started = false;
+
+    bestEl.textContent = String(best);
+
+    const keys = {
+      left: false,
+      right: false,
+      shoot: false
+    };
+
+    const player = {
+      w: 48,
+      h: 18,
+      x: 0,
+      y: 0,
+      speed: 380,
+      cooldown: 0,
+      lives: 3
+    };
+
+    const bullet = {
+      w: 4,
+      h: 14,
+      speed: 560
+    };
+
+    const enemyBullet = {
+      w: 4,
+      h: 12,
+      speed: 260
+    };
+
+    let bullets = [];
+    let enemyBullets = [];
+    let enemies = [];
+    let enemyDirection = 1;
+    let enemySpeed = 24;
+    let enemyDrop = 18;
+    let enemyShootTimer = 0;
+    let enemyAnimTimer = 0;
+    let enemyFrame = 0;
+
+    function getPlayfieldBottomPadding() {
+      const isMobile = window.matchMedia("(max-width: 720px)").matches;
+      const safe = 12 + (window.visualViewport ? Math.max(0, window.innerHeight - window.visualViewport.height) : 0);
+      return isMobile ? 170 + safe : 72;
+    }
+
+    function resize() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+      player.y = height - getPlayfieldBottomPadding();
+      player.x = Math.max(20, Math.min(width - player.w - 20, player.x || width / 2 - player.w / 2));
+    }
+
+    function initEnemies() {
+      enemies = [];
+      const isMobile = width <= 720;
+      const cols = isMobile ? 6 : 8;
+      const rows = 4;
+      const spacingX = isMobile ? 44 : 64;
+      const spacingY = isMobile ? 38 : 48;
+      const totalWidth = (cols - 1) * spacingX;
+      const startX = width / 2 - totalWidth / 2;
+      const startY = isMobile ? 96 : 120;
+
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          enemies.push({
+            x: startX + col * spacingX,
+            y: startY + row * spacingY,
+            w: isMobile ? 24 : 28,
+            h: isMobile ? 18 : 20,
+            alive: true,
+            row
+          });
+        }
+      }
+
+      enemyDirection = 1;
+      enemySpeed = 24;
+      enemyDrop = 18;
+      enemyShootTimer = 0;
+      enemyAnimTimer = 0;
+      enemyFrame = 0;
+    }
+
+    function resetGame() {
+      score = 0;
+      gameOver = false;
+      won = false;
+      started = false;
+      bullets = [];
+      enemyBullets = [];
+      player.lives = 3;
+      player.cooldown = 0;
+      player.x = width / 2 - player.w / 2;
+      initEnemies();
+      scoreEl.textContent = "0";
+      overlay.innerHTML = `
+        <h1 class="title">404</h1>
+        <p class="subtitle">
+          Coordonnées erronées<br>
+          Élimine les intrus et retrouve ton chemin
+        </p>
+      `;
+    }
+
+    function startGame() {
+      if (!started && !gameOver) {
+        started = true;
+        overlay.innerHTML = "";
+      }
+    }
+
+
+    function shoot() {
+      if (player.cooldown > 0 || gameOver || !started) return;
+      bullets.push({
+        x: player.x + player.w / 2 - bullet.w / 2,
+        y: player.y - bullet.h,
+        w: bullet.w,
+        h: bullet.h
+      });
+      player.cooldown = 0.28;
+    }
+
+    function enemyShoot() {
+      const alive = enemies.filter(e => e.alive);
+      if (!alive.length) return;
+
+      const columns = new Map();
+      for (const enemy of alive) {
+        const key = Math.round(enemy.x);
+        if (!columns.has(key) || columns.get(key).y < enemy.y) {
+          columns.set(key, enemy);
+        }
+      }
+
+      const frontLine = [...columns.values()];
+      const shooter = frontLine[Math.floor(Math.random() * frontLine.length)];
+      if (!shooter) return;
+
+      enemyBullets.push({
+        x: shooter.x + shooter.w / 2 - enemyBullet.w / 2,
+        y: shooter.y + shooter.h,
+        w: enemyBullet.w,
+        h: enemyBullet.h
+      });
+    }
+
+    function rectsIntersect(a, b) {
+      return a.x < b.x + b.w &&
+             a.x + a.w > b.x &&
+             a.y < b.y + b.h &&
+             a.y + a.h > b.y;
+    }
+
+    function update(dt) {
+      if (gameOver) return;
+
+      if (player.cooldown > 0) player.cooldown -= dt;
+
+      if (keys.left) {
+        player.x -= player.speed * dt;
+        startGame();
+      }
+      if (keys.right) {
+        player.x += player.speed * dt;
+        startGame();
+      }
+
+      player.x = Math.max(16, Math.min(width - player.w - 16, player.x));
+
+      for (const b of bullets) b.y -= bullet.speed * dt;
+      for (const b of enemyBullets) b.y += enemyBullet.speed * dt;
+
+      bullets = bullets.filter(b => b.y + b.h > 0);
+      enemyBullets = enemyBullets.filter(b => b.y < height + b.h);
+
+      const aliveEnemies = enemies.filter(e => e.alive);
+      if (aliveEnemies.length) {
+        let minX = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+
+        for (const enemy of aliveEnemies) {
+          enemy.x += enemyDirection * enemySpeed * dt;
+          minX = Math.min(minX, enemy.x);
+          maxX = Math.max(maxX, enemy.x + enemy.w);
+          maxY = Math.max(maxY, enemy.y + enemy.h);
+        }
+
+        if (minX <= 20 || maxX >= width - 20) {
+          enemyDirection *= -1;
+          for (const enemy of aliveEnemies) enemy.y += enemyDrop;
+        }
+
+        const invadeLimit = player.y - (width <= 720 ? 36 : 12);
+        if (maxY >= invadeLimit) {
+          endGame(false);
+          return;
+        }
+      }
+
+      for (const b of bullets) {
+        for (const enemy of enemies) {
+          if (enemy.alive && rectsIntersect(b, enemy)) {
+            enemy.alive = false;
+            b.dead = true;
+            score += 10 + (3 - enemy.row) * 5;
+            scoreEl.textContent = String(score);
+            enemySpeed = Math.min(90, enemySpeed + 1.5);
+            break;
+          }
+        }
+      }
+
+      bullets = bullets.filter(b => !b.dead);
+
+      for (const b of enemyBullets) {
+        if (rectsIntersect(b, player)) {
+          b.dead = true;
+          player.lives -= 1;
+          if (player.lives <= 0) {
+            endGame(false);
+            return;
+          }
+        }
+      }
+      enemyBullets = enemyBullets.filter(b => !b.dead);
+
+      if (enemies.every(e => !e.alive)) {
+        endGame(true);
+        return;
+      }
+
+      enemyShootTimer += dt;
+      enemyAnimTimer += dt;
+
+      if (enemyAnimTimer >= 0.45) {
+        enemyAnimTimer = 0;
+        enemyFrame = (enemyFrame + 1) % 2;
+      }
+
+      const shootEvery = Math.max(0.35, 1.25 - (score / 500));
+      if (started && enemyShootTimer >= shootEvery) {
+        enemyShootTimer = 0;
+        enemyShoot();
+      }
+    }
+
+    function endGame(didWin) {
+      gameOver = true;
+      won = didWin;
+      started = false;
+
+      if (score > best) {
+        best = score;
+        localStorage.setItem(STORAGE_KEY, String(best));
+        bestEl.textContent = String(best);
+      }
+
+      overlay.innerHTML = didWin
+        ? `
+          <h1 class="title">Signal Restored</h1>
+          <p class="subtitle">Secteur sécurisé<br>Appuie sur R pour une nouvelle partie</p>
+        `
+        : `
+          <h1 class="title">Game Over</h1>
+          <p class="subtitle">La page reste introuvable<br>Appuie sur R pour recommencer</p>
+        `;
+    }
+
+    function drawPlayer(x, y) {
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(x + 18, y, 12, 4);
+      ctx.fillRect(x + 14, y + 4, 20, 4);
+      ctx.fillRect(x + 8, y + 8, 32, 4);
+      ctx.fillRect(x + 4, y + 12, 12, 4);
+      ctx.fillRect(x + 32, y + 12, 12, 4);
+      ctx.fillRect(x + 2, y + 16, 8, 2);
+      ctx.fillRect(x + 38, y + 16, 8, 2);
+    }
+
+    function drawEnemy(x, y, frame, w = 28, h = 20) {
+      const sx = w / 28;
+      const sy = h / 20;
+      const r = (rx, ry, rw, rh) => ctx.fillRect(x + rx * sx, y + ry * sy, Math.max(1, rw * sx), Math.max(1, rh * sy));
+
+      ctx.fillStyle = "#fff";
+      r(8, 0, 12, 4);
+      r(4, 4, 20, 4);
+      r(0, 8, 28, 4);
+      r(4, 12, 6, 4);
+      r(18, 12, 6, 4);
+
+      if (frame === 0) {
+        r(2, 16, 4, 4);
+        r(22, 16, 4, 4);
+      } else {
+        r(6, 16, 4, 4);
+        r(18, 16, 4, 4);
+      }
+    }
+
+    function drawStarfield() {
+      const t = performance.now() * 0.00008;
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      for (let i = 0; i < 44; i++) {
+        const x = (Math.sin(i * 73.12 + t * (i % 7 + 1)) * 0.5 + 0.5) * width;
+        const y = (Math.cos(i * 51.91 + t * (i % 5 + 1.4)) * 0.5 + 0.5) * height;
+        const s = (i % 3) + 1;
+        ctx.fillRect(x, y, s, s);
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, width, height);
+
+      drawStarfield();
+
+      ctx.strokeStyle = "rgba(255,255,255,0.18)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(12, 12, width - 24, height - 24);
+
+      drawPlayer(player.x, player.y);
+
+      for (const enemy of enemies) {
+        if (enemy.alive) drawEnemy(enemy.x, enemy.y, enemyFrame, enemy.w, enemy.h);
+      }
+
+      ctx.fillStyle = "#fff";
+      for (const b of bullets) ctx.fillRect(b.x, b.y, b.w, b.h);
+      for (const b of enemyBullets) ctx.fillRect(b.x, b.y, b.w, b.h);
+
+      ctx.font = "12px ui-monospace, monospace";
+      ctx.fillStyle = "rgba(255,255,255,0.75)";
+      ctx.fillText(`LIVES ${player.lives}`, 20, height - 22);
+    }
+
+    function loop(ts) {
+      const dt = Math.min(0.033, (ts - lastTime) / 1000 || 0);
+      lastTime = ts;
+      update(dt);
+      draw();
+      animationId = requestAnimationFrame(loop);
+    }
+
+    window.addEventListener("keydown", (e) => {
+      if (e.code === "ArrowLeft") {
+        keys.left = true;
+        e.preventDefault();
+      }
+      if (e.code === "ArrowRight") {
+        keys.right = true;
+        e.preventDefault();
+      }
+      if (e.code === "Space") {
+        keys.shoot = true;
+        startGame();
+        shoot();
+        e.preventDefault();
+      }
+      if (e.code === "KeyR") {
+        resetGame();
+        e.preventDefault();
+      }
+    });
+
+    window.addEventListener("keyup", (e) => {
+      if (e.code === "ArrowLeft") keys.left = false;
+      if (e.code === "ArrowRight") keys.right = false;
+      if (e.code === "Space") keys.shoot = false;
+    });
+
+    function bindHoldButton(button, onStart, onEnd) {
+      if (!button) return;
+      const start = (e) => {
+        e.preventDefault();
+        onStart();
+      };
+      const end = (e) => {
+        e.preventDefault();
+        onEnd();
+      };
+
+      button.addEventListener("pointerdown", start);
+      button.addEventListener("pointerup", end);
+      button.addEventListener("pointercancel", end);
+      button.addEventListener("pointerleave", end);
+    }
+
+    bindHoldButton(btnLeft, () => {
+      keys.left = true;
+      startGame();
+    }, () => {
+      keys.left = false;
+    });
+
+    bindHoldButton(btnRight, () => {
+      keys.right = true;
+      startGame();
+    }, () => {
+      keys.right = false;
+    });
+
+    if (btnFire) {
+      btnFire.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        startGame();
+        shoot();
+      });
+    }
+
+    if (btnRestart) {
+      btnRestart.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        resetGame();
+      });
+    }
+
+    window.addEventListener("resize", resize);
+
+    resize();
+    resetGame();
+    animationId = requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

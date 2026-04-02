@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SYSTEM READY</title>
+
+<style>
+html,body{
+  margin:0;
+  background:#000;
+  overflow:hidden;
+  font-family:monospace;
+}
+
+#bg{
+  position:fixed;
+  inset:0;
+  background-color:#000;
+  background-size:cover;
+  background-position:center center;
+  background-repeat:no-repeat;
+  filter:grayscale(1) contrast(1.08) brightness(0.28);
+  transform:scale(1.03);
+  transition:opacity 1.4s ease;
+  opacity:1;
+  z-index:0;
+}
+
+#bg::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    rgba(0,0,0,0.68),
+    radial-gradient(circle at center, rgba(255,255,255,0.05), rgba(0,0,0,0.55) 55%, rgba(0,0,0,0.88)),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.025) 0px,
+      rgba(255,255,255,0.025) 1px,
+      rgba(0,0,0,0) 2px,
+      rgba(0,0,0,0) 4px
+    );
+  pointer-events:none;
+}
+
+canvas{
+  position:fixed;
+  inset:0;
+  opacity: 0.4;
+  z-index:1;
+}
+
+#ui{
+  position:fixed;
+  top:20px;
+  left:20px;
+  color:#aaa;
+  letter-spacing:.15em;
+  font-size:12px;
+  z-index:10;
+  pointer-events:none;
+}
+
+#bg-wrap{
+  position:fixed;
+  inset:0;
+  z-index:0;
+  overflow:hidden;
+}
+
+.bg-layer{
+  position:absolute;
+  inset:0;
+  background-color:#000;
+  background-size:cover;
+  background-position:center center;
+  background-repeat:no-repeat;
+  filter:grayscale(1) contrast(1.05) brightness(0.42);
+  transform:scale(1.03);
+  opacity:0;
+  transition:opacity 1.8s ease;
+}
+
+#bg-wrap::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    rgba(0,0,0,0.42),
+    radial-gradient(circle at center, rgba(255,255,255,0.04), rgba(0,0,0,0.32) 55%, rgba(0,0,0,0.62)),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.018) 0px,
+      rgba(255,255,255,0.018) 1px,
+      rgba(0,0,0,0) 2px,
+      rgba(0,0,0,0) 4px
+    );
+  pointer-events:none;
+}
+
+</style>
+<script src="js/backgrounds.js"></script>
+</head>
+<body>
+<div id="bg-wrap">
+  <div class="bg-layer" id="bgA"></div>
+  <div class="bg-layer" id="bgB"></div>
+</div>
+
+
+<canvas id="c"></canvas>
+<div id="ui">FRANCE SIGNAL FIELD</div>
+
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+
+let W, H;
+function resize(){
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+window.addEventListener("resize", resize);
+resize();
+
+
+
+const img = new Image();
+img.src = "images/gironde_mask.png";
+
+let maskData = null;
+let scale = 1;
+let offsetX = 0;
+let offsetY = 0;
+
+const particles = [];
+const pulses = [];
+
+const pointer = {
+  x: -9999,
+  y: -9999,
+  active: false
+};
+
+// label: 1=Text anzeigen
+// color: 0=weiss, 1=gelb
+const cities = [
+  // Hauptpunkt
+  {name:"Bordeaux", x:0.53, y:0.37, weight:3.8, label:1, color:0},
+  // ⭐ DEIN ORT
+  {name:"cb", x:0.85, y:0.66, weight:0.8, label:0, color:1},
+
+  // Bordeaux Métropole
+  {name:"Mérignac", x:0.50, y:0.37, weight:1.7, label:0, color:0},
+  {name:"Pessac", x:0.51, y:0.40, weight:1.5, label:0, color:0},
+  {name:"Talence", x:0.53, y:0.40, weight:1.4, label:0, color:0},
+  {name:"Bègles", x:0.54, y:0.42, weight:1.3, label:0, color:0},
+  {name:"Cenon", x:0.56, y:0.38, weight:1.2, label:0, color:0},
+  {name:"Floirac", x:0.55, y:0.40, weight:1.1, label:0, color:0},
+  {name:"Lormont", x:0.57, y:0.36, weight:1.1, label:0, color:0},
+  {name:"Bruges", x:0.53, y:0.34, weight:1.1, label:0, color:0},
+  {name:"Le Bouscat", x:0.52, y:0.34, weight:1.0, label:0, color:0},
+  {name:"Eysines", x:0.50, y:0.34, weight:1.0, label:0, color:0},
+  {name:"Blanquefort", x:0.49, y:0.32, weight:1.0, label:0, color:0},
+  {name:"Gradignan", x:0.50, y:0.43, weight:1.0, label:0, color:0},
+  {name:"Villenave-d'Ornon", x:0.54, y:0.45, weight:1.1, label:0, color:0},
+  {name:"Saint-Médard-en-Jalles", x:0.46, y:0.35, weight:1.3, label:0, color:0},
+  {name:"Le Haillan", x:0.47, y:0.36, weight:0.9, label:0, color:0},
+  {name:"Cestas", x:0.47, y:0.44, weight:0.9, label:0, color:0},
+  {name:"Canéjan", x:0.49, y:0.42, weight:0.9, label:0, color:0},
+  {name:"Léognan", x:0.50, y:0.46, weight:0.9, label:0, color:0},
+  {name:"Martillac", x:0.50, y:0.48, weight:0.9, label:0, color:0},
+  {name:"Saint-Selve", x:0.51, y:0.50, weight:0.8, label:0, color:0},
+  {name:"La Brède", x:0.49, y:0.49, weight:0.9, label:0, color:0},
+  {name:"Carbon-Blanc", x:0.58, y:0.35, weight:0.8, label:0, color:0},
+  {name:"Bassens", x:0.58, y:0.34, weight:0.8, label:0, color:0},
+  {name:"Artigues-près-Bordeaux", x:0.57, y:0.39, weight:0.8, label:0, color:0},
+  {name:"Bouliac", x:0.56, y:0.41, weight:0.8, label:0, color:0},
+  {name:"Latresne", x:0.56, y:0.43, weight:0.8, label:0, color:0},
+  {name:"Saint-Loubès", x:0.60, y:0.34, weight:0.8, label:0, color:0},
+  {name:"Montussan", x:0.60, y:0.37, weight:0.8, label:0, color:0},
+  {name:"Yvrac", x:0.59, y:0.38, weight:0.8, label:0, color:0},
+  {name:"Tresses", x:0.58, y:0.40, weight:0.8, label:0, color:0},
+  {name:"Pompignac", x:0.60, y:0.39, weight:0.8, label:0, color:0},
+  {name:"Sadirac", x:0.61, y:0.44, weight:0.8, label:0, color:0},
+  {name:"Camblanes-et-Meynac", x:0.57, y:0.44, weight:0.8, label:0, color:0},
+
+  // Bassin d'Arcachon / West
+  {name:"Arcachon", x:0.28, y:0.55, weight:1.8, label:0, color:0},
+  {name:"La Teste-de-Buch", x:0.30, y:0.57, weight:1.6, label:0, color:0},
+  {name:"Gujan-Mestras", x:0.32, y:0.55, weight:1.4, label:0, color:0},
+  {name:"Le Teich", x:0.34, y:0.53, weight:1.1, label:0, color:0},
+  {name:"Biganos", x:0.35, y:0.51, weight:1.1, label:0, color:0},
+  {name:"Audenge", x:0.33, y:0.49, weight:0.9, label:0, color:0},
+  {name:"Lanton", x:0.31, y:0.47, weight:0.9, label:0, color:0},
+  {name:"Andernos-les-Bains", x:0.29, y:0.45, weight:1.0, label:0, color:0},
+  {name:"Arès", x:0.28, y:0.43, weight:0.9, label:0, color:0},
+  {name:"Lège-Cap-Ferret", x:0.26, y:0.44, weight:1.0, label:0, color:0},
+  {name:"Marcheprime", x:0.37, y:0.48, weight:0.9, label:0, color:0},
+  {name:"Mios", x:0.38, y:0.53, weight:1.0, label:0, color:0},
+  {name:"Salles", x:0.40, y:0.60, weight:0.9, label:0, color:0},
+  {name:"Belin-Béliet", x:0.42, y:0.67, weight:0.9, label:0, color:0},
+  {name:"Le Barp", x:0.43, y:0.57, weight:0.8, label:0, color:0},
+
+  // Médoc / Nord-Ouest
+  {name:"Lesparre-Médoc", x:0.41, y:0.11, weight:1.2, label:0, color:0},
+  {name:"Pauillac", x:0.45, y:0.17, weight:1.2, label:0, color:0},
+  {name:"Saint-Estèphe", x:0.44, y:0.14, weight:1.0, label:0, color:0},
+  {name:"Margaux", x:0.47, y:0.23, weight:1.0, label:0, color:0},
+  {name:"Macau", x:0.48, y:0.26, weight:0.9, label:0, color:0},
+  {name:"Castelnau-de-Médoc", x:0.46, y:0.26, weight:0.9, label:0, color:0},
+  {name:"Lacanau", x:0.35, y:0.24, weight:0.9, label:0, color:0},
+  {name:"Carcans", x:0.34, y:0.20, weight:0.9, label:0, color:0},
+  {name:"Hourtin", x:0.34, y:0.14, weight:0.9, label:0, color:0},
+  {name:"Soulac-sur-Mer", x:0.36, y:0.05, weight:0.9, label:0, color:0},
+  {name:"Vendays-Montalivet", x:0.35, y:0.08, weight:0.8, label:0, color:0},
+  {name:"Grayan-et-l'Hôpital", x:0.34, y:0.04, weight:0.8, label:0, color:0},
+  {name:"Arsac", x:0.46, y:0.25, weight:0.8, label:0, color:0},
+  {name:"Moulis-en-Médoc", x:0.44, y:0.22, weight:0.8, label:0, color:0},
+  {name:"Saint-Laurent-Médoc", x:0.43, y:0.18, weight:0.8, label:0, color:0},
+  {name:"Gaillan-en-Médoc", x:0.40, y:0.10, weight:0.8, label:0, color:0},
+
+  // Haute Gironde / Estuaire
+  {name:"Blaye", x:0.61, y:0.21, weight:1.2, label:0, color:0},
+  {name:"Bourg", x:0.61, y:0.25, weight:0.9, label:0, color:0},
+  {name:"Saint-André-de-Cubzac", x:0.60, y:0.29, weight:1.2, label:0, color:0},
+  {name:"Cubzac-les-Ponts", x:0.59, y:0.30, weight:0.8, label:0, color:0},
+  {name:"Cavignac", x:0.66, y:0.24, weight:0.8, label:0, color:0},
+  {name:"Saint-Savin", x:0.64, y:0.23, weight:0.8, label:0, color:0},
+  {name:"Pugnac", x:0.62, y:0.27, weight:0.8, label:0, color:0},
+  {name:"Berson", x:0.60, y:0.23, weight:0.8, label:0, color:0},
+
+  // Libournais / East
+  {name:"Libourne", x:0.69, y:0.36, weight:1.6, label:0, color:0},
+  {name:"Saint-Émilion", x:0.72, y:0.38, weight:1.3, label:0, color:0},
+  {name:"Pomerol", x:0.70, y:0.37, weight:0.9, label:0, color:0},
+  {name:"Fronsac", x:0.67, y:0.35, weight:0.9, label:0, color:0},
+  {name:"Coutras", x:0.74, y:0.31, weight:1.0, label:0, color:0},
+  {name:"Castillon-la-Bataille", x:0.77, y:0.40, weight:1.0, label:0, color:0},
+  {name:"Sainte-Foy-la-Grande", x:0.83, y:0.46, weight:1.0, label:0, color:0},
+  {name:"Branne", x:0.68, y:0.42, weight:0.8, label:0, color:0},
+  {name:"Rauzan", x:0.71, y:0.44, weight:0.8, label:0, color:0},
+  {name:"Vayres", x:0.65, y:0.35, weight:0.8, label:0, color:0},
+  {name:"Izon", x:0.63, y:0.34, weight:0.8, label:0, color:0},
+  {name:"Arveyres", x:0.66, y:0.36, weight:0.8, label:0, color:0},
+
+  // Entre-deux-Mers / Centre-Est
+  {name:"Créon", x:0.61, y:0.45, weight:0.9, label:0, color:0},
+  {name:"Targon", x:0.64, y:0.49, weight:0.8, label:0, color:0},
+  {name:"Sauveterre-de-Guyenne", x:0.69, y:0.53, weight:0.9, label:0, color:0},
+  {name:"Monségur", x:0.74, y:0.56, weight:0.8, label:0, color:0},
+  {name:"Pellegrue", x:0.79, y:0.55, weight:0.8, label:0, color:0},
+  {name:"Langoiran", x:0.57, y:0.46, weight:0.8, label:0, color:0},
+  {name:"Cadillac-sur-Garonne", x:0.55, y:0.50, weight:0.9, label:0, color:0},
+  {name:"Castres-Gironde", x:0.52, y:0.48, weight:0.8, label:0, color:0},
+  {name:"Beautiran", x:0.51, y:0.47, weight:0.8, label:0, color:0},
+  {name:"Portets", x:0.53, y:0.49, weight:0.8, label:0, color:0},
+  {name:"Rions", x:0.58, y:0.49, weight:0.8, label:0, color:0},
+
+  // Sud Gironde
+  {name:"Barsac", x:0.58, y:0.53, weight:0.9, label:0, color:0},
+  {name:"Preignac", x:0.59, y:0.54, weight:0.8, label:0, color:0},
+  {name:"Sauternes", x:0.60, y:0.56, weight:1.0, label:0, color:0},
+  {name:"Langon", x:0.61, y:0.59, weight:1.4, label:0, color:0},
+  {name:"Saint-Macaire", x:0.62, y:0.60, weight:0.8, label:0, color:0},
+  {name:"Toulenne", x:0.60, y:0.60, weight:0.8, label:0, color:0},
+  {name:"Podensac", x:0.54, y:0.51, weight:0.8, label:0, color:0},
+  {name:"La Réole", x:0.69, y:0.64, weight:1.2, label:0, color:0},
+  {name:"Bazas", x:0.62, y:0.73, weight:1.2, label:0, color:0},
+  {name:"Auros", x:0.64, y:0.66, weight:0.8, label:0, color:0},
+  {name:"Villandraut", x:0.57, y:0.77, weight:0.8, label:0, color:0},
+  {name:"Grignols", x:0.64, y:0.77, weight:0.8, label:0, color:0},
+  {name:"Captieux", x:0.59, y:0.90, weight:0.8, label:0, color:0},
+  {name:"Belin-Béliet-Sud", x:0.46, y:0.72, weight:0.7, label:0, color:0}
+];
+
+img.onload = () => {
+  const off = document.createElement("canvas");
+  off.width = img.width;
+  off.height = img.height;
+  const octx = off.getContext("2d");
+  octx.drawImage(img, 0, 0);
+  maskData = octx.getImageData(0, 0, img.width, img.height);
+  initParticles();
+};
+
+function isInside(x, y) {
+  if (!maskData) return false;
+
+  const ix = Math.floor(x);
+  const iy = Math.floor(y);
+
+  if (ix < 0 || iy < 0 || ix >= maskData.width || iy >= maskData.height) {
+    return false;
+  }
+
+  const i = (iy * maskData.width + ix) * 4;
+  const r = maskData.data[i];
+  const g = maskData.data[i + 1];
+  const b = maskData.data[i + 2];
+  const brightness = (r + g + b) / 3;
+
+  return brightness > 100;
+}
+
+function screenToMask(sx, sy) {
+  return {
+    x: (sx - offsetX) / scale,
+    y: (sy - offsetY) / scale
+  };
+}
+
+function maskToScreen(mx, my) {
+  return {
+    x: offsetX + mx * scale,
+    y: offsetY + my * scale
+  };
+}
+
+function getVisibleCities() {
+  return cities.filter(c => c.label === 1 || c.color === 1);
+}
+
+function initParticles() {
+  particles.length = 0;
+  for (let i = 0; i < 900; i++) {
+    spawnParticle();
+  }
+}
+
+function spawnParticle() {
+  let x, y;
+
+  if (Math.random() < 0.7) {
+    const city = cities[Math.floor(Math.random() * cities.length)];
+    const spread = 80 / city.weight;
+    x = city.x * img.width + (Math.random() - 0.5) * spread;
+    y = city.y * img.height + (Math.random() - 0.5) * spread;
+  } else {
+    x = Math.random() * img.width;
+    y = Math.random() * img.height;
+  }
+
+  let tries = 0;
+  while (!isInside(x, y) && tries < 100) {
+    x = Math.random() * img.width;
+    y = Math.random() * img.height;
+    tries++;
+  }
+
+  if (!isInside(x, y)) return;
+
+  particles.push({
+    x, y,
+    vx: (Math.random() - 0.5) * 0.3,
+    vy: (Math.random() - 0.5) * 0.3,
+    r: Math.random() * 1.5 + 0.5
+  });
+}
+
+function sendPulse(x, y, reflected = false) {
+  pulses.push({
+    x,
+    y,
+    r: 0,
+    speed: reflected ? 1.3 : 2.0,
+    alpha: reflected ? 0.12 : 0.22,
+    reflected
+  });
+}
+
+function pulseCity(name) {
+  const c = cities.find(c => c.name === name);
+  if (!c) return;
+
+  const x = offsetX + c.x * img.width * scale;
+  const y = offsetY + c.y * img.height * scale;
+
+  sendPulse(x, y);
+}
+
+function detectReflections(pulse) {
+  const samples = 48;
+  const threshold = 10;
+
+  for (let a = 0; a < Math.PI * 2; a += (Math.PI * 2) / samples) {
+    const sx = pulse.x + Math.cos(a) * pulse.r;
+    const sy = pulse.y + Math.sin(a) * pulse.r;
+
+    const m = screenToMask(sx, sy);
+
+    const insideNow = isInside(m.x, m.y);
+    const insideBefore = isInside(
+      m.x - Math.cos(a) * threshold / scale,
+      m.y - Math.sin(a) * threshold / scale
+    );
+
+    if (!insideNow && insideBefore) {
+      const rx = pulse.x + Math.cos(a) * (pulse.r - 8);
+      const ry = pulse.y + Math.sin(a) * (pulse.r - 8);
+
+      if (Math.random() < 0.08) {
+        sendPulse(rx, ry, true);
+      }
+    }
+  }
+}
+
+function drawMaskPath() {
+  if (!maskData) return;
+
+  ctx.beginPath();
+
+  for (let y = 0; y < maskData.height; y += 4) {
+    let runStart = -1;
+
+    for (let x = 0; x < maskData.width; x++) {
+      const i = (y * maskData.width + x) * 4;
+      const r = maskData.data[i];
+      const g = maskData.data[i + 1];
+      const b = maskData.data[i + 2];
+      const brightness = (r + g + b) / 3;
+      const inside = brightness > 100;
+
+      if (inside && runStart === -1) {
+        runStart = x;
+      }
+
+      if ((!inside || x === maskData.width - 1) && runStart !== -1) {
+        const runEnd = (inside && x === maskData.width - 1) ? x : x - 1;
+
+        const sx = offsetX + runStart * scale;
+        const sy = offsetY + y * scale;
+        const sw = (runEnd - runStart + 1) * scale;
+        const sh = 4 * scale;
+
+        ctx.rect(sx, sy, sw, sh);
+        runStart = -1;
+      }
+    }
+  }
+
+  ctx.clip();
+}
+
+function drawParticleCityLinks() {
+  const visibleCities = getVisibleCities();
+  if (!visibleCities.length) return;
+
+  for (const p of particles) {
+    const px = offsetX + p.x * scale;
+    const py = offsetY + p.y * scale;
+
+    for (const c of visibleCities) {
+      const cx = offsetX + c.x * img.width * scale;
+      const cy = offsetY + c.y * img.height * scale;
+
+      const dx = cx - px;
+      const dy = cy - py;
+      const d = Math.hypot(dx, dy);
+
+      const maxDist = c.color === 1 ? 180 : 110;
+
+      if (d < maxDist) {
+        const alphaBase = c.color === 1 ? 0.22 : 0.12;
+        const alpha = (1 - d / maxDist) * alphaBase;
+
+        ctx.strokeStyle = c.color === 1
+          ? `rgba(255,220,80,${alpha})`
+          : `rgba(255,255,255,${alpha})`;
+
+        ctx.lineWidth = c.color === 1 ? 0.8 : 0.5;
+
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.lineTo(cx, cy);
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+canvas.addEventListener("click", e => {
+  sendPulse(e.clientX, e.clientY);
+});
+
+canvas.addEventListener("mousemove", e => {
+  pointer.x = e.clientX;
+  pointer.y = e.clientY;
+  pointer.active = true;
+});
+
+canvas.addEventListener("mouseleave", () => {
+  pointer.active = false;
+});
+
+canvas.addEventListener("touchmove", e => {
+  const t = e.touches[0];
+  if (!t) return;
+  pointer.x = t.clientX;
+  pointer.y = t.clientY;
+  pointer.active = true;
+}, { passive: true });
+
+canvas.addEventListener("touchend", () => {
+  pointer.active = false;
+});
+
+canvas.addEventListener("touchcancel", () => {
+  pointer.active = false;
+});
+
+let t = 0;
+
+function loop() {
+  requestAnimationFrame(loop);
+
+  if (!maskData) {
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#666";
+    ctx.fillText("Loading mask...", 20, 50);
+    return;
+  }
+
+  t += 0.016;
+
+  ctx.fillStyle = "rgba(0,0,0,0.25)";
+  ctx.fillRect(0, 0, W, H);
+
+  scale = Math.min(W / img.width, H / img.height) * 0.8;
+  offsetX = (W - img.width * scale) / 2;
+  offsetY = (H - img.height * scale) / 2;
+
+  // pulses update
+  pulses.forEach(p => {
+    p.r += p.speed;
+    p.alpha *= 0.992;
+
+    if (!p.reflected) {
+      detectReflections(p);
+    }
+  });
+
+  for (let i = pulses.length - 1; i >= 0; i--) {
+    if (pulses[i].alpha < 0.01 || pulses[i].r > Math.max(W, H)) {
+      pulses.splice(i, 1);
+    }
+  }
+
+  // particles update
+  particles.forEach(p => {
+    const sx = offsetX + p.x * scale;
+    const sy = offsetY + p.y * scale;
+
+    if (pointer.active) {
+      const dx = sx - pointer.x;
+      const dy = sy - pointer.y;
+      const d = Math.hypot(dx, dy);
+      const repelRadius = 120;
+
+      if (d > 0 && d < repelRadius) {
+        const force = (1 - d / repelRadius) * 0.08;
+        p.vx += (dx / d) * force / scale * 12;
+        p.vy += (dy / d) * force / scale * 12;
+      }
+    }
+
+    p.vx *= 0.985;
+    p.vy *= 0.985;
+
+    p.x += p.vx;
+    p.y += p.vy;
+
+    if (!isInside(p.x, p.y)) {
+      p.vx *= -0.8;
+      p.vy *= -0.8;
+      p.x += p.vx * 2;
+      p.y += p.vy * 2;
+    }
+  });
+
+  // pulses nur innerhalb Frankreich
+  ctx.save();
+  drawMaskPath();
+
+  pulses.forEach(p => {
+    ctx.strokeStyle = p.reflected
+      ? `rgba(255,255,255,${p.alpha * 0.7})`
+      : `rgba(255,255,255,${p.alpha})`;
+
+    ctx.lineWidth = p.reflected ? 1 : 1.6;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+
+  ctx.restore();
+
+  // particles zeichnen
+  particles.forEach(p => {
+    const sx = offsetX + p.x * scale;
+    const sy = offsetY + p.y * scale;
+
+    let glow = 0.25;
+
+    pulses.forEach(pl => {
+      const d = Math.hypot(sx - pl.x, sy - pl.y);
+      if (Math.abs(d - pl.r) < 10) {
+        glow += 1;
+      }
+    });
+
+    ctx.fillStyle = `rgba(255,255,255,${Math.min(glow, 1)})`;
+    ctx.beginPath();
+    ctx.arc(sx, sy, p.r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // feine Linien zu markierten Städten
+  ctx.save();
+  drawMaskPath();
+  drawParticleCityLinks();
+  ctx.restore();
+
+  // Städte
+  cities.forEach(c => {
+    const x = offsetX + c.x * img.width * scale;
+    const y = offsetY + c.y * img.height * scale;
+
+    const isYellow = c.color === 1;
+    const col = isYellow
+      ? "rgba(255,220,80,1)"
+      : "rgba(255,255,255,1)";
+
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.arc(x, y, 3 + c.weight * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (c.label === 1) {
+      ctx.fillStyle = col;
+      ctx.font = "13px monospace";
+      ctx.fillText(c.name, x + 10, y - 10);
+    }
+  });
+}
+
+loop();
+setTimeout(() => pulseCity("Bordeaux"), 800);
+</script>
+
+</body>
+</html>
