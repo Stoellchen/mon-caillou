@@ -4,34 +4,73 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SYSTEM READY</title>
+  <style>
+    /* CSS für den fixierten Footer (wird nach dem Laden injiziert) */
+    .dynamic-footer {
+      position: fixed;
+      bottom: 15px;
+      right: 15px;
+      background: rgba(255, 255, 255, 0.8); /* Leicht transparent */
+      padding: 10px 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 12px;
+      color: #333;
+      z-index: 9999; /* Immer zuoberst */
+      text-align: right;
+      backdrop-filter: blur(5px); /* Schicker Milchglas-Effekt */
+    }
+    .dynamic-footer a { color: #0066cc; text-decoration: none; margin-left: 10px; }
+    .dynamic-footer a:hover { text-decoration: underline; }
+  </style>
 </head>
 <body>
 <script>
-  const pages = ["si.html", "sb.html"
-              ,"fr1.html","fr2.html","fr3.html","fr4.html","fr5.html","fr6.html"
-              ,"gi1.html","gi2.html","gi3.html","gi4.html","gi5.html","gi6.html"
-            ];
+  const pages = ["si.html", "sb.html", "fr1.html","fr2.html","fr3.html","fr4.html","fr5.html","fr6.html", "gi1.html","gi2.html","gi3.html","gi4.html","gi5.html","gi6.html"];
   const chosenPage = pages[Math.floor(Math.random() * pages.length)];
 
   fetch(chosenPage)
     .then(response => {
-      if (!response.ok) {
-        throw new Error("Datei konnte nicht geladen werden: " + chosenPage);
-      }
+      if (!response.ok) throw new Error("Datei konnte nicht geladen werden: " + chosenPage);
       return response.text();
     })
     .then(html => {
+      // 1. Seite laden
       document.open();
       document.write(html);
       document.close();
+
+      // 2. Den Footer nach dem Laden der Seite injizieren
+      // Wir warten ein winziges Stück, bis das DOM bereit ist
+      setTimeout(() => {
+          injectFooter();
+      }, 100);
     })
     .catch(err => {
-      document.body.innerHTML = `
-        <div style="background:#000;color:#fff;font-family:monospace;padding:20px">
-          Fehler beim Laden von <b>${chosenPage}</b><br><br>${err.message}
-        </div>
-      `;
+      document.body.innerHTML = `<div style="background:#000;color:#fff;font-family:monospace;padding:20px">Fehler beim Laden von <b>${chosenPage}</b><br><br>${err.message}</div>`;
     });
+
+  function injectFooter() {
+    const currentDomain = window.location.hostname.replace('www.', '');
+    const currentYear = new Date().getFullYear();
+    
+    // Erstelle den Footer-Container
+    const footer = document.createElement('footer');
+    footer.className = 'dynamic-footer';
+    
+    // Inhalt zusammenbauen
+    footer.innerHTML = `
+        <div>&copy; 2026–${currentYear} All rights reserved.</div>
+        <div>
+            <a href="https://legal.${currentDomain}" target="_blank">Mentions Légales & Impressum</a>
+            <a href="https://legal.${currentDomain}#privacy" target="_blank">Politique de confidentialité</a>
+        </div>
+    `;
+    
+    // In den Body der neu geladenen Seite einfügen
+    document.body.appendChild(footer);
+  }
 </script>
 </body>
 </html>
