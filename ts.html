@@ -63,6 +63,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            z-index: 2000;
+            position: relative;
         }
 
         .random {
@@ -207,7 +209,7 @@ canvas{
     <script type="text/javascript">
     $(document).ready(function() {
         var $randomnbr = $('.nbr');
-        var $timer = 30;
+        var $timer = 15;
         var $data = 0;
         var index;
         var change;
@@ -215,7 +217,7 @@ canvas{
         var letters = ["T", "H", "O", "M", "A", "S", "&nbsp;", "S", "."];
 
         $randomnbr.each(function() {
-            change = Math.round(Math.random() * 100);
+            change = Math.round(Math.random() * 500);
             $(this).attr('data-change', change);
         });
 
